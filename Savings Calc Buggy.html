@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Bộ tính tiền tiết kiệm (bản chạy có lỗi logic)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background: #f4f6f8
+        }
+        
+        .wrap {
+            max-width: 700px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 1.4rem;
+            margin-bottom: 1rem
+        }
+        
+        form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        label {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+        
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ddd
+        }
+        
+        .full {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .result {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #fcfcfc;
+        }
+        /* Cố ý lỗi CSS nhỏ: màu bị hơi lệch, nút không đậm như mong đợi */
+        
+        .btn-primary {
+            background: #1e88e533;
+            color: #004;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer
+        }
+        
+        .hint {
+            font-size: 0.85rem;
+            color: #666
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <h1>TÍNH TIỀN LÃI SUẤT NGÂN HÀNG</h1>
+
+        <form id="calc-form">
+            <div>
+                <label for="principal">Tiền gửi ban đầu (VND)</label>
+                <input id="principal" type="number" min="0" step="1" value="1000000" />
+            </div>
+
+            <div>
+                <label for="rate">Lãi suất (%)</label>
+                <input id="rate" type="number" min="0" step="0.01" value="6" />
+            </div>
+
+            <div>
+                <label for="period">Kỳ hạn</label>
+                <input id="period" type="number" min="1" step="1" value="12" />
+            </div>
+
+            <div>
+                <label for="unit">Đơn vị kỳ hạn</label>
+                <select id="unit">
+          <option value="month">Tháng</option>
+          <option value="year">Năm</option>
+        </select>
+            </div>
+
+            <div class="full">
+                <button id="calc-btn" type="submit" class="btn-primary">Tính</button>
+                <button id="reset-btn" type="button">Đặt lại</button>
+                <div class="hint">(Công thức có lỗi nhẹ để test — ví dụ tính sai nhẹ phần lãi ghép tháng)</div>
+            </div>
+        </form>
+
+        <div class="result" aria-live="polite">
+            <div>Tổng tiền sau kỳ hạn: <strong id="total">0</strong> VND</div>
+            <div>Lợi nhuận thu được: <strong id="profit">0</strong> VND</div>
+        </div>
+    </div>
+
+    <script>
+        const principalEl = document.getElementById('principal');
+        const rateEl = document.getElementById('rate');
+        const periodEl = document.getElementById('period');
+        const unitEl = document.getElementById('unit');
+        const totalEl = document.getElementById('total');
+        const profitEl = document.getElementById('profit');
+        const form = document.getElementById('calc-form');
+        const resetBtn = document.getElementById('reset-btn');
+
+        let model = {
+            principal: 1000000,
+            rate: 6,
+            period: 12,
+            unit: 'month'
+        };
+
+        function calculate(principal, rate, period, unit) {
+            const P = Number(principal);
+            const r = Number(rate);
+            let interestRate;
+            // BUG: nếu chọn tháng, công thức sai chia đôi
+            if (unit === 'month') {
+                interestRate = r / 200; // đáng ra phải là /1200, cố ý lỗi 2x sai
+            } else {
+                interestRate = r / 100;
+            }
+
+            let final;
+            if (unit === 'year') {
+                // compound annual
+                final = P * Math.pow(1 + interestRate, period);
+            } else {
+                // compound monthly nhưng tính nhầm thời gian (coi tháng như năm)
+                final = P * Math.pow(1 + interestRate, period);
+            }
+
+            const profit = final - P;
+            return {
+                final: Math.round(final),
+                profit: Math.round(profit)
+            };
+        }
+
+        function renderResult(res) {
+            totalEl.textContent = res.final.toLocaleString('vi-VN');
+            profitEl.textContent = res.profit.toLocaleString('vi-VN');
+        }
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault(); // giờ không reload nữa
+            model.principal = principalEl.value;
+            model.rate = rateEl.value;
+            model.period = periodEl.value;
+            model.unit = unitEl.value;
+            const res = calculate(model.principal, model.rate, model.period, model.unit);
+            renderResult(res);
+        });
+
+        resetBtn.addEventListener('click', () => {
+            principalEl.value = 0;
+            rateEl.value = 0;
+            periodEl.value = 1;
+            unitEl.value = 'month';
+            renderResult({
+                final: 0,
+                profit: 0
+            });
+        });
+    </script>
+</body>
+
+</html>
